@@ -1,6 +1,6 @@
 import os
 import time
-from tkinter import Misc, ttk, END
+from tkinter import Misc
 from selenium.webdriver import Chrome
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
