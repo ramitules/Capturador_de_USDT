@@ -1,11 +1,15 @@
 import os
 import time
-from selenium import webdriver
+from tkinter import Misc, ttk
+from selenium.webdriver import Chrome
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 
-class web_scrapper(webdriver.Chrome):
+class web_scrapper(Chrome):
+    """
+    Clase base para web scrapping con Chrome
+    """
     def __init__(self):
         options = self.config_options()
         service = Service()
@@ -15,8 +19,7 @@ class web_scrapper(webdriver.Chrome):
     def config_options(self):
         x = os.getcwd()
         o = Options()
-        o.add_argument('user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/110.0')
-        o.add_argument('--start-maximized')
+        o.add_argument('user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/116.0')
         o.add_argument('--disable-web-security')
         o.add_argument('--disable-notifications')
         o.add_argument('--ignore-certificate-errors')
@@ -26,6 +29,7 @@ class web_scrapper(webdriver.Chrome):
         o.add_argument('--no-first-run')
         o.add_argument('--no-proxy-server')
         o.add_argument('--disable-blink-features=AutomationControlled')
+        o.add_argument('--headless=new')
 
         exp_options = ['enable-automation',
                        'ignore-certificate-errors',
@@ -41,6 +45,10 @@ class web_scrapper(webdriver.Chrome):
         return o
 
     def check_download(self):
+        """
+        Loop para descargas\n
+        Muestra una animacion en la linea de comandos
+        """
         ANIMATION_CHARS = ['|', '/', '-', '\\']
 
         while True:
@@ -57,6 +65,61 @@ class web_scrapper(webdriver.Chrome):
                 return
             
 class Binance(web_scrapper):
-    def __init__(self):
+    """
+    Navegador con integracion a la pagina principal de Binance P2P.
+
+    :Args:
+        metodo_cobro - seleccionar metodo de cobro preferencial\n
+        cantidad - cantidad de pesos a cambiar\n
+        verificados - solo mostrar usuarios con verificacion\n
+        minimo_ordenes - cantidad de ordenes que tiene que tener el comerciante
+    """
+    def __init__(
+            self,
+            master: Misc | None = None,
+            metodo_cobro: str | None = None,
+            cantidad: float | None = None,
+            verificados: bool = False,
+            minimo_ordenes: int | None = None,
+            filas: int = 3):
         super().__init__()
-        
+
+        self.MAIN_URL = 'https://p2p.binance.com/es-LA/trade/sell/USDT?fiat=ARS&payment=all-payments'
+        self.xpath = '/html/body/div[1]/div[2]/main/div[1]/div[4]/div/div/div/div[1]/div/div/div/table/tbody/tr'
+        self.master = master
+        self.metodo_cobro = metodo_cobro
+        self.cantidad = cantidad
+        self.verificados = verificados
+        self.minimo_ordenes = minimo_ordenes
+        self.filas = filas
+
+    def mainloop(self):
+        self.get(self.MAIN_URL)
+        time.sleep(2)
+
+        xpath_actualizar = '//*[@id="C2CofferList_btn_refresh"]'
+        xpath_5seg = '/html/body/div[1]/div[2]/main/div[1]/div[3]/div[2]/div/div/div[2]/div[2]/div/div[2]/div/div[2]'
+        self.find_element(By.XPATH, xpath_actualizar).click()
+        self.find_element(By.XPATH, xpath_5seg).click()
+
+        #self.tabla = ttk.Treeview(self.master)
+        #self.tabla.pack()
+
+        while True:
+            self.iterar_filas()
+            time.sleep(5)
+
+    def iterar_filas(self):
+        for row in range(1, self.filas + 1):
+            fila = self.find_element(By.XPATH, f'{self.xpath}[{row}]')
+            celdas = fila.find_elements(By.CLASS_NAME, 'bn-table-cell')
+
+            anunciante = celdas[0].text.split('\n')[1]
+            precio = celdas[1].text.split('\n')[0]
+            rangos = celdas[2].text.split('\n')
+            rango = f"${rangos[2]} - ${rangos[5]}"
+            metodos = celdas[3].text.split('\n')
+            metodo_pago = ' / '.join(metodos)
+
+            fila_retorno = [anunciante, precio, rango, metodo_pago]
+            print('\t'.join(fila_retorno))
