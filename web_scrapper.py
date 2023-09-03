@@ -1,6 +1,6 @@
 import os
 import time
-from tkinter import Misc, ttk
+from tkinter import Misc, ttk, END
 from selenium.webdriver import Chrome
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
@@ -76,7 +76,7 @@ class Binance(web_scrapper):
     """
     def __init__(
             self,
-            master: Misc | None = None,
+            master: Misc,
             metodo_cobro: str | None = None,
             cantidad: float | None = None,
             verificados: bool = False,
@@ -93,7 +93,9 @@ class Binance(web_scrapper):
         self.minimo_ordenes = minimo_ordenes
         self.filas = filas
 
-    def mainloop(self):
+        self.primer_ejecucion()
+
+    def primer_ejecucion(self):
         self.get(self.MAIN_URL)
         time.sleep(2)
 
@@ -102,14 +104,9 @@ class Binance(web_scrapper):
         self.find_element(By.XPATH, xpath_actualizar).click()
         self.find_element(By.XPATH, xpath_5seg).click()
 
-        #self.tabla = ttk.Treeview(self.master)
-        #self.tabla.pack()
-
-        while True:
-            self.iterar_filas()
-            time.sleep(5)
-
     def iterar_filas(self):
+        anuncios: list[list] = []
+
         for row in range(1, self.filas + 1):
             fila = self.find_element(By.XPATH, f'{self.xpath}[{row}]')
             celdas = fila.find_elements(By.CLASS_NAME, 'bn-table-cell')
@@ -123,3 +120,7 @@ class Binance(web_scrapper):
 
             fila_retorno = [anunciante, precio, rango, metodo_pago]
             print('\t'.join(fila_retorno))
+
+            anuncios.append(fila_retorno)
+
+        return anuncios
