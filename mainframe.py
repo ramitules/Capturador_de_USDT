@@ -43,7 +43,7 @@ class Mainframe(ThemedTk):
         self.precio_max['justify'] = 'left'
         self.precio_min['justify'] = 'left'
 
-        self.referencia['text'] = 'Rango minimo = salario minimo'
+        
         
     def place_widgets(self):
         #Acomodar widgets en la pantalla
@@ -58,6 +58,11 @@ class Mainframe(ThemedTk):
     def activar_ars(self):
         #Funcion del boton Activar USDT/ARS
         self.tabla = self.crear_tabla()
+
+        self.referencia['text'] = 'Rango minimo = salario minimo'
+
+        self.boton_ars['text'] = 'Desactivar USDT/ARS'
+        self.boton_ars['command'] = self.desactivar_ars
         
         #Precios maximos y minimos durante la ejecucion
         self.maximo = 0.0
@@ -65,13 +70,11 @@ class Mainframe(ThemedTk):
 
         #Instanciar un navegador oculto
         self.scrapper = Binance(filas=6)
+        self.scrapper.primer_ejecucion()
 
         #Delegar la ejecucion a otro hilo
         thread = threading.Thread(target=self.scrapper_loop)
         thread.start()
-
-        self.boton_ars['text'] = 'Detener USDT/ARS'
-        self.boton_ars['command'] = self.desactivar_ars
 
         self.valor_ref['text'] = f'$ {self.scrapper.salario_minimo}'
 

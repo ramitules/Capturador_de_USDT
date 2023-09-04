@@ -82,15 +82,11 @@ class Binance(web_scrapper):
             filas: int = 3):
         super().__init__()
 
-        self.xpath = '/html/body/div[1]/div[2]/main/div[1]/div[4]/div/div/div/div[1]/div/div/div/table/tbody/tr'
         self.metodo_cobro = metodo_cobro
         self.cantidad = cantidad
         self.verificados = verificados
         self.minimo_ordenes = minimo_ordenes
         self.filas = filas
-
-        self.salario_minimo = self.buscar_salario()
-        self.primer_ejecucion()
 
     def buscar_salario(self):
         MAIN_URL = 'https://elsalario.com.ar/Salario/salario-minimo'
@@ -99,26 +95,39 @@ class Binance(web_scrapper):
         texto = self.find_element(By.CLASS_NAME, 'documentDescription.description').text
         texto = texto.split(',')[0].split(' ')[-1].replace('.','').replace('$','')
 
-        return texto
+        self.salario_minimo = texto
 
     def primer_ejecucion(self):
-        MAIN_URL = 'https://p2p.binance.com/es-LA/trade/sell/USDT?fiat=ARS&payment=all-payments'
-        self.get(MAIN_URL)
+        self.buscar_salario()
+
+        P2P_URL = 'https://p2p.binance.com/es-LA/trade/sell/USDT?fiat=ARS&payment=all-payments'
+        self.get(P2P_URL)
         time.sleep(2)
 
         xpath_actualizar = '//*[@id="C2CofferList_btn_refresh"]'
         xpath_5seg = '/html/body/div[1]/div[2]/main/div[1]/div[3]/div[2]/div/div/div[2]/div[2]/div/div[2]/div/div[2]'
+        xpath_filtro = '/html/body/div[1]/div[2]/main/div[1]/div[3]/div[2]/div/div/div[2]/div[1]/div[3]/div'
+        xpath_comerciantes = '/html/body/div[1]/div[2]/main/div[1]/div[3]/div[2]/div/div/div[2]/div[1]/div[3]/div/div/div/div[1]'
+
         self.find_element(By.XPATH, xpath_actualizar).click()
         self.find_element(By.XPATH, xpath_5seg).click()
+        self.find_element(By.XPATH, xpath_filtro).click()
+        self.find_element(By.XPATH, xpath_comerciantes).click()
+
+        time.sleep(1)
 
     def iterar_filas(self):
+        xpath = '/html/body/div[1]/div[2]/main/div[1]/div[4]/div/div/div/div[1]/div/div/div/table/tbody/tr'
+
         anuncios: list[list] = []
 
         contador = 1
 
         while (len(anuncios) < self.filas):
-            fila = self.find_element(By.XPATH, f'{self.xpath}[{contador}]')
+            fila = self.find_element(By.XPATH, f'{xpath}[{contador}]')
             celdas = fila.find_elements(By.CLASS_NAME, 'bn-table-cell')
+
+            if not celdas[0].text: continue
 
             anunciante = celdas[0].text.split('\n')[1]
             precio = celdas[1].text.split('\n')[0]
