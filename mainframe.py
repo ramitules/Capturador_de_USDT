@@ -20,6 +20,8 @@ class Mainframe(ThemedTk):
 
         self.boton_ars = ttk.Button(self.frame_ars)
 
+        self.referencia = ttk.Label(self.frame_ars)
+        self.valor_ref = ttk.Label(self.frame_ars)
         self.precio_max = ttk.Label(self.frame_ars)
         self.precio_min = ttk.Label(self.frame_ars)
 
@@ -36,13 +38,20 @@ class Mainframe(ThemedTk):
         self.boton_ars['image'] = self.img_ars
         self.boton_ars['padding'] = 4
 
+        self.referencia['justify'] = 'left'
+        self.valor_ref['justify'] = 'center'
         self.precio_max['justify'] = 'left'
         self.precio_min['justify'] = 'left'
+
+        self.referencia['text'] = 'Rango minimo = salario minimo'
         
     def place_widgets(self):
         #Acomodar widgets en la pantalla
         self.frame_ars.pack(side='left', padx=20)
         self.boton_ars.pack(pady=5)
+
+        self.referencia.pack(pady=5, fill='x')
+        self.valor_ref.pack(pady=5)
         self.precio_max.pack(pady=5, fill='x')
         self.precio_min.pack(pady=5, fill='x')
 
@@ -55,7 +64,7 @@ class Mainframe(ThemedTk):
         self.minimo = 999999.99
 
         #Instanciar un navegador oculto
-        self.scrapper = Binance(self.frame_ars, filas=6)
+        self.scrapper = Binance(filas=6)
 
         #Delegar la ejecucion a otro hilo
         thread = threading.Thread(target=self.scrapper_loop)
@@ -63,6 +72,8 @@ class Mainframe(ThemedTk):
 
         self.boton_ars['text'] = 'Detener USDT/ARS'
         self.boton_ars['command'] = self.desactivar_ars
+
+        self.valor_ref['text'] = f'$ {self.scrapper.salario_minimo}'
 
     def desactivar_ars(self):
         #Limpia pantalla y cierra sesion del navegador

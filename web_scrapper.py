@@ -1,6 +1,5 @@
 import os
 import time
-from tkinter import Misc
 from selenium.webdriver import Chrome
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
@@ -76,7 +75,6 @@ class Binance(web_scrapper):
     """
     def __init__(
             self,
-            master: Misc,
             metodo_cobro: str | None = None,
             cantidad: float | None = None,
             verificados: bool = False,
@@ -84,19 +82,28 @@ class Binance(web_scrapper):
             filas: int = 3):
         super().__init__()
 
-        self.MAIN_URL = 'https://p2p.binance.com/es-LA/trade/sell/USDT?fiat=ARS&payment=all-payments'
         self.xpath = '/html/body/div[1]/div[2]/main/div[1]/div[4]/div/div/div/div[1]/div/div/div/table/tbody/tr'
-        self.master = master
         self.metodo_cobro = metodo_cobro
         self.cantidad = cantidad
         self.verificados = verificados
         self.minimo_ordenes = minimo_ordenes
         self.filas = filas
 
+        self.salario_minimo = self.buscar_salario()
         self.primer_ejecucion()
 
+    def buscar_salario(self):
+        MAIN_URL = 'https://elsalario.com.ar/Salario/salario-minimo'
+        self.get(MAIN_URL)
+
+        texto = self.find_element(By.CLASS_NAME, 'documentDescription.description').text
+        texto = texto.split(',')[0].split(' ')[-1].replace('.','').replace('$','')
+
+        return texto
+
     def primer_ejecucion(self):
-        self.get(self.MAIN_URL)
+        MAIN_URL = 'https://p2p.binance.com/es-LA/trade/sell/USDT?fiat=ARS&payment=all-payments'
+        self.get(MAIN_URL)
         time.sleep(2)
 
         xpath_actualizar = '//*[@id="C2CofferList_btn_refresh"]'
@@ -107,8 +114,10 @@ class Binance(web_scrapper):
     def iterar_filas(self):
         anuncios: list[list] = []
 
-        for row in range(1, self.filas + 1):
-            fila = self.find_element(By.XPATH, f'{self.xpath}[{row}]')
+        contador = 1
+
+        while (len(anuncios) < self.filas):
+            fila = self.find_element(By.XPATH, f'{self.xpath}[{contador}]')
             celdas = fila.find_elements(By.CLASS_NAME, 'bn-table-cell')
 
             anunciante = celdas[0].text.split('\n')[1]
@@ -117,6 +126,12 @@ class Binance(web_scrapper):
             rango = f"${rangos[2]} - ${rangos[5]}"
             metodos = celdas[3].text.split('\n')
             metodo_pago = ' / '.join(metodos)
+
+            contador += 1
+
+            rango_minimo = int(rangos[2].split('.')[0].replace(',',''))
+            if rango_minimo > int(self.salario_minimo):
+                continue
 
             fila_retorno = [anunciante, precio, rango, metodo_pago]
             print('\t'.join(fila_retorno))
