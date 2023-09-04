@@ -15,9 +15,13 @@ class Mainframe(ThemedTk):
         self.place_widgets()
 
     def load_widgets(self):
+        #Creacion de widgets
         self.frame_ars = ttk.Frame(self)
 
         self.boton_ars = ttk.Button(self.frame_ars)
+
+        self.precio_max = ttk.Label(self.frame_ars)
+        self.precio_min = ttk.Label(self.frame_ars)
 
         self.img_ars = PhotoImage(file='media/ars.png')
 
@@ -25,21 +29,35 @@ class Mainframe(ThemedTk):
         pass
 
     def config_widgets(self):
+        #Funcionalidad y seteo de widgets
         self.boton_ars['text'] = 'Activar USDT/ARS'
         self.boton_ars['command'] = self.activar_ars
         self.boton_ars['compound'] = LEFT
         self.boton_ars['image'] = self.img_ars
         self.boton_ars['padding'] = 4
+
+        self.precio_max['justify'] = 'left'
+        self.precio_min['justify'] = 'left'
         
     def place_widgets(self):
-        self.frame_ars.pack(expand=True, fill='x')
-
-        self.boton_ars.pack(pady=10)
+        #Acomodar widgets en la pantalla
+        self.frame_ars.pack(side='left', padx=20)
+        self.boton_ars.pack(pady=5)
+        self.precio_max.pack(pady=5, fill='x')
+        self.precio_min.pack(pady=5, fill='x')
 
     def activar_ars(self):
+        #Funcion del boton Activar USDT/ARS
         self.tabla = self.crear_tabla()
+        
+        #Precios maximos y minimos durante la ejecucion
+        self.maximo = 0.0
+        self.minimo = 999999.99
 
-        self.scrapper = Binance(self.frame_ars)
+        #Instanciar un navegador oculto
+        self.scrapper = Binance(self.frame_ars, filas=6)
+
+        #Delegar la ejecucion a otro hilo
         thread = threading.Thread(target=self.scrapper_loop)
         thread.start()
 
@@ -47,8 +65,9 @@ class Mainframe(ThemedTk):
         self.boton_ars['command'] = self.desactivar_ars
 
     def desactivar_ars(self):
+        #Limpia pantalla y cierra sesion del navegador
         for i, widget in enumerate(self.frame_ars.winfo_children()):
-            if i == 0:
+            if i < 3:
                 continue
 
             widget.destroy()
@@ -60,7 +79,7 @@ class Mainframe(ThemedTk):
         self.boton_ars['command'] = self.activar_ars
 
     def crear_tabla(self):
-        tabla = ttk.Treeview(self.frame_ars)
+        tabla = ttk.Treeview(self)
 
         tabla['columns'] = ('anunciante', 'precio', 'rango', 'metodo')
         tabla['show'] = 'headings'
@@ -75,15 +94,29 @@ class Mainframe(ThemedTk):
         tabla.heading('rango', text='Rango de precios')
         tabla.heading('metodo', text='Metodo de pago')
 
-        tabla.pack(expand=True, fill='both')
+        tabla.pack(expand=True, fill='x', side='left')
 
         return tabla
 
     def mostrar_info(self, filas: list):
+        #Limpia informacion anterior y setea nuevos valores en tabla
         self.tabla.delete(*self.tabla.get_children())
 
         for i, fila in enumerate(filas):
             self.tabla.insert('', i, values=fila)
+
+            if i > 0:
+                continue
+
+            precio = float(fila[1])
+
+            if precio > self.maximo:
+                self.maximo = precio
+                self.precio_max['text'] = f'Precio maximo: {self.maximo}'
+
+            if precio < self.minimo:
+                self.minimo = precio
+                self.precio_min['text'] = f'Precio minimo: {self.minimo}'
 
     def scrapper_loop(self):
         while True:
