@@ -4,6 +4,7 @@ from selenium.webdriver import Chrome
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
+from selenium.common import exceptions
 
 class web_scrapper(Chrome):
     """
@@ -124,26 +125,32 @@ class Binance(web_scrapper):
         contador = 1
 
         while (len(anuncios) < self.filas):
-            fila = self.find_element(By.XPATH, f'{xpath}[{contador}]')
-            celdas = fila.find_elements(By.CLASS_NAME, 'bn-table-cell')
+            try:
+                fila = self.find_element(By.XPATH, f'{xpath}[{contador}]')
+                celdas = fila.find_elements(By.CLASS_NAME, 'bn-table-cell')
+
+            except exceptions.StaleElementReferenceException:
+                continue
+
+            contador += 1
 
             if not celdas[0].text: continue
 
-            anunciante = celdas[0].text.split('\n')[1]
-            precio = celdas[1].text.split('\n')[0]
-            rangos = celdas[2].text.split('\n')
-            rango = f"${rangos[2]} - ${rangos[5]}"
-            metodos = celdas[3].text.split('\n')
-            metodo_pago = ' / '.join(metodos)
+            try:
+                anunciante = celdas[0].text.split('\n')[1]
+                precio = celdas[1].text.split('\n')[0]
+                rangos = celdas[2].text.split('\n')
+                rango = f"${rangos[2]} - ${rangos[5]}"
+                metodos = celdas[3].text.split('\n')
+                metodo_pago = ' / '.join(metodos)
 
-            contador += 1
+            except: continue
 
             rango_minimo = int(rangos[2].split('.')[0].replace(',',''))
             if rango_minimo > int(self.salario_minimo):
                 continue
 
             fila_retorno = [anunciante, precio, rango, metodo_pago]
-            print('\t'.join(fila_retorno))
 
             anuncios.append(fila_retorno)
 
