@@ -88,6 +88,7 @@ class Binance(web_scrapper):
         self.verificados = verificados
         self.minimo_ordenes = minimo_ordenes
         self.filas = filas
+        self.xpath_fila = '/html/body/div[1]/div[2]/main/div[1]/div[4]/div/div/div/div[1]/div'
 
     def buscar_salario(self):
         MAIN_URL = 'https://elsalario.com.ar/Salario/salario-minimo'
@@ -98,13 +99,28 @@ class Binance(web_scrapper):
 
         self.salario_minimo = texto
 
+        print(f'Salario minimo encontrado: ${self.salario_minimo}')
+
     def primer_ejecucion(self):
+        def wait_full_load():
+            while True:
+                try:
+                    self.find_element(By.XPATH, f'{self.xpath_fila}[5]')
+                    return
+
+                except:
+                    pass
+
+        print('Trabajando...')
         self.buscar_salario()
 
         P2P_URL = 'https://p2p.binance.com/es-LA/trade/sell/USDT?fiat=ARS&payment=all-payments'
         self.get(P2P_URL)
-        time.sleep(2)
+        
+        wait_full_load()
 
+        print('Configurando Binance P2P...')
+        
         xpath_actualizar = '//*[@id="C2CofferList_btn_refresh"]'
         xpath_5seg = '/html/body/div[1]/div[2]/main/div[1]/div[3]/div[2]/div/div/div[2]/div[2]/div/div[2]/div/div[2]'
         xpath_filtro = '/html/body/div[1]/div[2]/main/div[1]/div[3]/div[2]/div/div/div[2]/div[1]/div[3]/div'
@@ -115,39 +131,35 @@ class Binance(web_scrapper):
         self.find_element(By.XPATH, xpath_filtro).click()
         self.find_element(By.XPATH, xpath_comerciantes).click()
 
-        time.sleep(1)
+        wait_full_load()
+
+        print('Completado!')
 
     def iterar_filas(self):
-        xpath = '/html/body/div[1]/div[2]/main/div[1]/div[4]/div/div/div/div[1]/div/div/div/table/tbody/tr'
-
         anuncios: list[list] = []
 
         contador = 1
 
         while (len(anuncios) < self.filas):
-            try:
-                fila = self.find_element(By.XPATH, f'{xpath}[{contador}]')
-                celdas = fila.find_elements(By.CLASS_NAME, 'bn-table-cell')
+            xpath_fila = f'{self.xpath_fila}[{contador}]'
 
-            except exceptions.StaleElementReferenceException:
-                continue
+            filas = self.find_element(By.XPATH, xpath_fila)
 
             contador += 1
 
-            if not celdas[0].text: continue
+            #try:
+            anunciante = filas.find_element(By.XPATH, f'{xpath_fila}/div[1]/div[1]/div[1]/a').text
+            precio = filas.find_element(By.XPATH, f'{xpath_fila}/div[2]/div[1]/div[1]').text
+            minimo = filas.find_element(By.XPATH, f'{xpath_fila}/div[4]/div[2]/div[1]').text.replace('ARS$','').split('.')[0]
+            maximo = filas.find_element(By.XPATH, f'{xpath_fila}/div[4]/div[2]/div[3]').text.replace('ARS$','').split('.')[0]
+            rango = f"${minimo} - ${maximo}".replace('\n','')
+            metodos = filas.find_element(By.XPATH, f'{xpath_fila}/div[5]/div').text.split('\n')
+            metodo_pago = ' / '.join(metodos)
+            #except: continue
 
-            try:
-                anunciante = celdas[0].text.split('\n')[1]
-                precio = celdas[1].text.split('\n')[0]
-                rangos = celdas[2].text.split('\n')
-                rango = f"${rangos[2]} - ${rangos[5]}"
-                metodos = celdas[3].text.split('\n')
-                metodo_pago = ' / '.join(metodos)
+            rango_minimo = int(minimo.replace(',',''))
 
-            except: continue
-
-            rango_minimo = int(rangos[2].split('.')[0].replace(',',''))
-            if rango_minimo > int(self.salario_minimo):
+            if self.metodo_cobro and rango_minimo > int(self.salario_minimo):
                 continue
 
             fila_retorno = [anunciante, precio, rango, metodo_pago]
