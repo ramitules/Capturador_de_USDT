@@ -116,15 +116,12 @@ class Binance(web_scrapper):
             self.find_element(By.XPATH, xpath_cantidad).send_keys(str(self.cantidad))
 
         #Comerciantes verificados
-        if self.verificados:
-            xpath_filtro = '/html/body/div[1]/div[2]/main/div[1]/div[3]/div[2]/div/div/div[2]/button'
+        if not self.verificados:
+            xpath_filtro = '//*[@id="__APP"]/div[2]/main/div[1]/div[3]/div[2]/div/div/div[2]/div[1]/div[3]/div/button'
             self.find_element(By.XPATH, xpath_filtro).click()
 
-            xpath_comerciantes = '/html/body/div[9]/div[1]/div/div/div[2]/div/div[2]/label/div[1]'
+            xpath_comerciantes = '//*[@id="__APP"]/div[2]/main/div[1]/div[3]/div[2]/div/div/div[2]/div[1]/div[3]/div/div/div/div[1]/label/div[2]'
             self.find_element(By.XPATH, xpath_comerciantes).click()
-
-            xpath_confirmar_verif = '/html/body/div[9]/div[1]/div/div/div[2]/div/div[4]/button[2]'
-            self.find_element(By.XPATH, xpath_confirmar_verif).click()
 
         self.wait_full_load()
 
