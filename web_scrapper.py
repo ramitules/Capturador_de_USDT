@@ -4,7 +4,6 @@ from selenium.webdriver import Chrome
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
-from selenium.common import exceptions
 
 class web_scrapper(Chrome):
     """
@@ -32,8 +31,7 @@ class web_scrapper(Chrome):
         o.add_argument('--headless=new')
 
         exp_options = ['enable-automation',
-                       'ignore-certificate-errors',
-                       'enable-logging']
+                       'ignore-certificate-errors']
 
         prefs = {'profile.default_content_setting_values.notifications': 2,
                  'credentials_enable_service': False,
@@ -76,66 +74,67 @@ class Binance(web_scrapper):
     """
     def __init__(
             self,
-            metodo_cobro: str | None = None,
-            cantidad: float | None = None,
-            verificados: bool = False,
-            minimo_ordenes: int | None = None,
-            filas: int = 3):
+            cantidad: int,
+            verificados: bool,
+            filas: int):
         super().__init__()
 
-        self.metodo_cobro = metodo_cobro
         self.cantidad = cantidad
         self.verificados = verificados
-        self.minimo_ordenes = minimo_ordenes
         self.filas = filas
-        self.xpath_fila = '/html/body/div[1]/div[2]/main/div[1]/div[4]/div/div/div/div[1]/div'
+        self.xpath_fila = '//*[@id="__APP"]/div[2]/main/div[1]/div[4]/div/div/div/div[1]/div'
 
-    def buscar_salario(self):
-        MAIN_URL = 'https://elsalario.com.ar/Salario/salario-minimo'
-        self.get(MAIN_URL)
+    def wait_full_load(self):
+        while True:
+            try:
+                self.find_element(By.XPATH, f'{self.xpath_fila}[5]')
+                return
 
-        texto = self.find_element(By.CLASS_NAME, 'documentDescription.description').text
-        texto = texto.split(',')[0].split(' ')[-1].replace('.','').replace('$','')
-
-        self.salario_minimo = texto
-
-        print(f'Salario minimo encontrado: ${self.salario_minimo}')
+            except:
+                pass
 
     def primer_ejecucion(self):
-        def wait_full_load():
-            while True:
-                try:
-                    self.find_element(By.XPATH, f'{self.xpath_fila}[5]')
-                    return
-
-                except:
-                    pass
-
         print('Trabajando...')
-        self.buscar_salario()
 
         P2P_URL = 'https://p2p.binance.com/es-LA/trade/sell/USDT?fiat=ARS&payment=all-payments'
         self.get(P2P_URL)
         
-        wait_full_load()
+        self.wait_full_load()
 
         print('Configurando Binance P2P...')
         
+        #Actualizar cada 5 segundos
         xpath_actualizar = '//*[@id="C2CofferList_btn_refresh"]'
-        xpath_5seg = '/html/body/div[1]/div[2]/main/div[1]/div[3]/div[2]/div/div/div[2]/div[2]/div/div[2]/div/div[2]'
-        xpath_filtro = '/html/body/div[1]/div[2]/main/div[1]/div[3]/div[2]/div/div/div[2]/div[1]/div[3]/div'
-        xpath_comerciantes = '/html/body/div[1]/div[2]/main/div[1]/div[3]/div[2]/div/div/div[2]/div[1]/div[3]/div/div/div/div[1]'
-
         self.find_element(By.XPATH, xpath_actualizar).click()
-        self.find_element(By.XPATH, xpath_5seg).click()
-        self.find_element(By.XPATH, xpath_filtro).click()
-        self.find_element(By.XPATH, xpath_comerciantes).click()
 
-        wait_full_load()
+        xpath_5seg = '//*[@id="__APP"]/div[2]/main/div[1]/div[3]/div[2]/div/div/div[2]/div[2]/div/div[2]/div/div[2]'
+        self.find_element(By.XPATH, xpath_5seg).click()
+
+        #Cantidad
+        if self.cantidad:
+            xpath_cantidad = '//*[@id="C2Csearchamount_searchbox_amount"]'
+            self.find_element(By.XPATH, xpath_cantidad).send_keys(str(self.cantidad))
+
+        #Comerciantes verificados
+        if self.verificados:
+            xpath_filtro = '/html/body/div[1]/div[2]/main/div[1]/div[3]/div[2]/div/div/div[2]/button'
+            self.find_element(By.XPATH, xpath_filtro).click()
+
+            xpath_comerciantes = '/html/body/div[9]/div[1]/div/div/div[2]/div/div[2]/label/div[1]'
+            self.find_element(By.XPATH, xpath_comerciantes).click()
+
+            xpath_confirmar_verif = '/html/body/div[9]/div[1]/div/div/div[2]/div/div[4]/button[2]'
+            self.find_element(By.XPATH, xpath_confirmar_verif).click()
+
+        self.wait_full_load()
 
         print('Completado!')
 
     def iterar_filas(self):
+        self.wait_full_load()
+
+        time.sleep(1)
+
         anuncios: list[list] = []
 
         contador = 1
@@ -147,7 +146,6 @@ class Binance(web_scrapper):
 
             contador += 1
 
-            #try:
             anunciante = filas.find_element(By.XPATH, f'{xpath_fila}/div[1]/div[1]/div[1]/a').text
             precio = filas.find_element(By.XPATH, f'{xpath_fila}/div[2]/div[1]/div[1]').text
             minimo = filas.find_element(By.XPATH, f'{xpath_fila}/div[4]/div[2]/div[1]').text.replace('ARS$','').split('.')[0]
@@ -155,12 +153,6 @@ class Binance(web_scrapper):
             rango = f"${minimo} - ${maximo}".replace('\n','')
             metodos = filas.find_element(By.XPATH, f'{xpath_fila}/div[5]/div').text.split('\n')
             metodo_pago = ' / '.join(metodos)
-            #except: continue
-
-            rango_minimo = int(minimo.replace(',',''))
-
-            if self.metodo_cobro and rango_minimo > int(self.salario_minimo):
-                continue
 
             fila_retorno = [anunciante, precio, rango, metodo_pago]
 
